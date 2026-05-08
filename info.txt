@@ -1,0 +1,59 @@
+o, if I have a model that was trained on 800*500 images and I feed it 800*500 images, it will infer correctly no issue and accuratly right?
+Edit
+Copy
+Share
+Yes, exactly. If your model was trained on 800×500 and you feed it 800×500, inference will be correct and accurate with no resizing distortion.
+But there's one critical requirement: the OpenVINO model must have been exported with 800×500 as the static input shape, not the default 256×256.
+Here's how to verify and handle this:
+Check Your Model's Input Shape
+Run this quick script on your .xml file:
+Python
+Copy
+import openvino as ov
+
+core = ov.Core()
+model = core.read_model("your_model.xml")
+input_shape = model.input(0).shape
+print(f"Model input shape: {input_shape}")
+What you want to see:
+plain
+Copy
+[1, 3, 500, 800]   # or [?, 3, ?, ?] (dynamic)
+What you don't want:
+plain
+Copy
+[1, 3, 256, 256]   # default anomalib export — will error or distort
+If Your Model Is Already 800×500
+The current code will auto-detect this and work perfectly:
+Python
+Copy
+input_shape = compiled.input(0).shape   # [1, 3, 500, 800]
+H = int(input_shape[2])                  # 500
+W = int(input_shape[3])                  # 800
+
+img_resized = cv2.resize(img_bgr, (W, H))   # 800×500 → 800×500 (no change!)
+The resize is effectively a no-op — image stays native resolution. Heatmap also stays 800×500 with no resize back needed.
+If Your Model Is 256×256 (Default Anomalib)
+You have two options:
+Table
+Option	What to do	Trade-off
+A. Retrain/re-export	Set input_size: [500, 800] in your anomalib config, export new OpenVINO model	Best accuracy, no distortion
+B. Use current code as-is	Model receives resized 256×256 version	Slight blur, tiny anomalies may be lost, but usually acceptable
+The One-Line Fix for No-Resize Mode
+If you know your model is always native resolution, I can add a checkbox "Native resolution (no resize)" that bypasses cv2.resize entirely. Want me to patch that in?
+Or if you want to force the code to never resize (and let OpenVINO error if the model doesn't match), change this line:
+Python
+Copy
+# Current:
+img_resized = cv2.resize(img_bgr, (W, H))
+
+# No-resize version:
+img_resized = img_bgr   # trust that image already matches model input
+Summary
+Table
+Scenario	Result
+Model trained 800×500, input 800×500, model exported at 800×500	✅ Perfect, no issues
+Model trained 800×500, input 800×500, model exported at 256×256	❌ OpenVINO error or silent distortion
+Model trained 256×256, input 800×500	⚠️ Works but resized, slight accuracy loss
+The key is how the model was exported, not how it was trained. Training could use 800×500 crops, but if anomalib exported to 256×256 (the default), that's what OpenVINO enforces.
+Want me to add the "Native resolution" checkbox to the GUI?
