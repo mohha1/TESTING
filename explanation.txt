@@ -1,0 +1,121 @@
+You can inspect and modify your model manually in two ways:
+1. Inspect your model's outputs with a quick script
+Run this standalone script to see what your model actually exposes:
+Python
+Copy
+import openvino as ov
+from pathlib import Path
+
+model_path = "path/to/your/model.xml"
+
+core = ov.Core()
+model = core.read_model(str(model_path))
+compiled = core.compile_model(model, "CPU")
+
+print("=== INPUTS ===")
+for inp in compiled.inputs:
+    print(f"  Name: {inp.get_any_name()}")
+    print(f"  Shape: {inp.shape}")
+    print(f"  Type: {inp.element_type}")
+    
+print("\n=== OUTPUTS ===")
+for i, out in enumerate(compiled.outputs):
+    print(f"  [{i}] Name: {out.get_any_name()}")
+    print(f"      Shape: {out.shape}")
+    print(f"      Type: {out.element_type}")
+This prints something like:
+plain
+Copy
+=== OUTPUTS ===
+  [0] Name: output
+      Shape: [1, 1]
+      Type: f32
+  [1] Name: 435
+      Shape: [1, 1, 256, 256]
+      Type: f32
+2. Manual code changes in the existing file
+Open your app_4_patched.py and find the run_openvino_inference() function. Here are the specific lines to edit:
+A. Change input size (if your model needs 224×224, 512×512, etc.)
+Find this block (~line 55):
+Python
+Copy
+    if len(input_shape) == 4:
+        H = int(input_shape[2]) if input_shape[2] > 0 else 256
+        W = int(input_shape[3]) if input_shape[3] > 0 else 256
+    else:
+        H, W = 256, 256
+Change to hardcoded values:
+Python
+Copy
+    H, W = 224, 224  # or whatever your model expects
+Or force-read from model even if dynamic:
+Python
+Copy
+    H = int(input_shape[2])  # remove the "> 0 else 256" fallback
+    W = int(input_shape[3])
+B. Change output name matching (if auto-detection fails)
+Find the auto-detection block (~line 20):
+Python
+Copy
+    for name in output_names:
+        lower = name.lower()
+        if any(k in lower for k in ["score", "pred", "anomaly_score", "output"]):
+            score_output = compiled.output(name)
+            break
+If your score output is named 435 or output_0, add it:
+Python
+Copy
+        if any(k in lower for k in ["score", "pred", "anomaly_score", "output", "435"]):
+Or bypass auto-detection entirely and hardcode by index:
+Python
+Copy
+    score_output = compiled.output(0)   # first output = score
+    map_output = compiled.output(1)     # second output = anomaly map
+    mask_output = None                  # no mask output
+C. Change output shape handling (if heatmap looks wrong)
+Find the map extraction (~line 85):
+Python
+Copy
+    anomaly_map = results[map_output].squeeze()
+    if len(anomaly_map.shape) > 2:
+        anomaly_map = anomaly_map[0] if anomaly_map.shape[0] == 1 else anomaly_map
+    if len(anomaly_map.shape) == 3 and anomaly_map.shape[2] in [1, 3]:
+        anomaly_map = anomaly_map[:, :, 0]
+Add debug prints to see what you're getting:
+Python
+Copy
+    anomaly_map = results[map_output].squeeze()
+    print(f"DEBUG: anomaly_map shape after squeeze: {anomaly_map.shape}")
+    print(f"DEBUG: anomaly_map dtype: {anomaly_map.dtype}")
+    print(f"DEBUG: min={anomaly_map.min():.4f}, max={anomaly_map.max():.4f}")
+If the shape is weird (e.g., [256, 256, 3] for RGB heatmap), adjust:
+Python
+Copy
+    if len(anomaly_map.shape) == 3:
+        anomaly_map = anomaly_map.mean(axis=2)  # average RGB channels to grayscale
+D. Skip the 4-panel combined image (if you only want heatmap)
+Find the visualization block (~line 115):
+Python
+Copy
+    heatmap_bgr = cv2.cvtColor(heatmap_resized, cv2.COLOR_GRAY2BGR)
+    heatmap_color = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
+    mask_bgr = cv2.cvtColor(mask_resized, cv2.COLOR_GRAY2BGR)
+    combined = np.hstack([img_bgr, heatmap_bgr, heatmap_color, mask_bgr])
+Replace with just original + heatmap:
+Python
+Copy
+    heatmap_color = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
+    combined = np.hstack([img_bgr, heatmap_color])  # only 2 panels
+Or return just the heatmap:
+Python
+Copy
+    combined = heatmap_color  # single image
+Quick checklist for debugging a new model
+Table
+Symptom	Likely cause	Fix
+Crash at compiled.output("pred_score")	Wrong output name	Use index compiled.output(0) or add your name to the keyword list
+Heatmap is solid color	Map not normalized or wrong shape	Add debug prints, check squeeze() behavior
+Score is always 0 or huge	Wrong output picked as score	Verify with inspection script which output is scalar
+Image looks stretched/distorted	Wrong input size	Hardcode H, W to training size
+Heatmap misaligned with image	Resize interpolation	Change cv2.resize interpolation method
+Want me to add a "Model Inspector" button to the GUI that runs the diagnostic script and shows outputs in a popup?
