@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Verification Tool</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9b9b97;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --mono: 'Courier New', monospace;
+    --green-bg: #EAF3DE; --green-text: #27500A; --green-border: #3B6D11;
+    --red-bg: #FCEBEB; --red-text: #791F1F; --red-border: #A32D2D;
+    --amber-bg: #FAEEDA; --amber-text: #633806; --amber-border: #854F0B;
+    --blue-bg: #E6F1FB; --blue-text: #0C447C; --blue-border: #185FA5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a28; --bg3: #333331;
+      --text: #f0f0ec; --text2: #a0a09c; --text3: #6a6a66;
+      --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
+      --green-bg: #173404; --green-text: #C0DD97; --green-border: #3B6D11;
+      --red-bg: #501313; --red-text: #F7C1C1; --red-border: #A32D2D;
+      --amber-bg: #412402; --amber-text: #FAC775; --amber-border: #854F0B;
+      --blue-bg: #042C53; --blue-text: #B5D4F4; --blue-border: #185FA5;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .header { display: flex; align-items: center; gap: 14px; margin-bottom: 1.5rem; }
+  .hicon { width: 48px; height: 48px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+  .sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .sbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--bg); margin-bottom: 1rem; font-size: 13px; color: var(--text2); }
+  .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-border); flex-shrink: 0; transition: background 0.2s; }
+  .sdot.w { background: var(--amber-border); } .sdot.e { background: var(--red-border); }
+  .pbar { height: 3px; background: var(--bg3); border-radius: 99px; overflow: hidden; margin-bottom: 1rem; display: none; }
+  .pbar.on { display: block; }
+  .pfill { height: 100%; width: 0%; background: var(--text); border-radius: 99px; transition: width 0.3s; }
+  .tabs { display: flex; border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem; background: var(--bg); }
+  .tab { flex: 1; padding: 9px 8px; font-size: 12px; font-weight: 500; cursor: pointer; background: transparent; color: var(--text2); border: none; border-right: 0.5px solid var(--border); transition: background 0.12s; }
+  .tab:last-child { border-right: none; }
+  .tab.active { background: var(--bg2); color: var(--text); }
+  .tab-panel { display: none; } .tab-panel.active { display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } }
+  .panel { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+  .plabel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .dz { border: 1.5px dashed var(--border2); border-radius: var(--radius); min-height: 170px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; overflow: hidden; }
+  .dz:hover { background: var(--bg2); }
+  .dz.has-img { border-style: solid; border-color: var(--border); }
+  .dz img { width: 100%; height: 170px; object-fit: contain; }
+  .dzhint { font-size: 12px; color: var(--text2); text-align: center; padding: 1.25rem; line-height: 1.6; }
+  .dzhint .icon { font-size: 28px; display: block; margin-bottom: 8px; }
+  input[type=file] { display: none; }
+  .fgrid { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .frow { display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; border-radius: var(--radius); background: var(--bg2); font-size: 12px; gap: 6px; }
+  .fname { color: var(--text2); font-weight: 500; font-size: 11px; flex-shrink: 0; }
+  .fval { color: var(--text); font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: center; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .bok { background: var(--green-bg); color: var(--green-text); }
+  .bfail { background: var(--red-bg); color: var(--red-text); }
+  .bwarn { background: var(--amber-bg); color: var(--amber-text); }
+  .binfo { background: var(--blue-bg); color: var(--blue-text); }
+  .acts { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .btn { padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); transition: background 0.12s, opacity 0.12s; display: flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--bg2); }
+  .btn.pri { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.pri:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+  .rpanel { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; margin-bottom: 1rem; display: none; }
+  .rhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .rtitle { font-size: 14px; font-weight: 600; }
+  .rscore { font-size: 26px; font-weight: 700; }
+  .sok { color: var(--green-border); } .sfail { color: var(--red-border); }
+  .verdict { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+  .vok { background: var(--green-bg); color: var(--green-text); }
+  .vfail { background: var(--red-bg); color: var(--red-text); }
+  .vwarn { background: var(--amber-bg); color: var(--amber-text); }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  @media (max-width: 500px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 10px; text-align: center; }
+  .mval { font-size: 20px; font-weight: 700; color: var(--text); }
+  .mlbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .dheads { display: grid; grid-template-columns: 130px 1fr 1fr 60px; gap: 8px; font-size: 11px; color: var(--text3); padding: 0 9px; margin-bottom: 4px; }
+  .ditem { display: grid; grid-template-columns: 130px 1fr 1fr 60px; gap: 8px; align-items: center; font-size: 12px; padding: 7px 9px; border-radius: var(--radius); background: var(--bg2); margin-bottom: 4px; }
+  .dfield { font-weight: 600; color: var(--text2); font-size: 11px; }
+  .dmaster { color: var(--text2); font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dsample { font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dok .dsample { color: var(--green-border); } .dfail .dsample { color: var(--red-border); font-weight: 700; }
+  .stitle { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .bcrow { display: flex; gap: 8px; align-items: center; padding: 7px 9px; border-radius: var(--radius); background: var(--bg2); font-size: 12px; margin-bottom: 5px; }
+  .bclbl { color: var(--text2); font-weight: 600; font-size: 11px; width: 100px; flex-shrink: 0; }
+  .bcval { font-family: var(--mono); font-size: 11px; color: var(--text); flex: 1; word-break: break-all; }
+  .logpanel { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+  .lentry { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  .lentry:last-child { border-bottom: none; }
+  .ltime { color: var(--text3); font-family: var(--mono); width: 55px; flex-shrink: 0; }
+  .lop { color: var(--text2); flex: 1; }
+  .empty { font-size: 12px; color: var(--text3); padding: 8px 0; }
+  .section { margin-bottom: 1rem; }
+  .vcheck { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border-radius: var(--radius); background: var(--bg2); font-size: 12px; margin-bottom: 5px; }
+  .vcname { font-weight: 600; color: var(--text2); font-size: 11px; width: 160px; flex-shrink: 0; }
+  .vcdetail { color: var(--text2); flex: 1; font-size: 11px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="hicon">🔍</div>
+    <div>
+      <h1>DNBA LABEL CHECK</h1>
+      <p class="sub">OCR · QR code · Visual checks · LOCAL INFERENCE</p>
+    </div>
+  </div>
+
+  <div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">Initialising libraries...</span></div>
+  <div class="pbar" id="pbar"><div class="pfill" id="pfill"></div></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('ocr')">📄 OCR fields</button>
+    <button class="tab" onclick="switchTab('barcode')">⬛ QR code</button>
+    <button class="tab" onclick="switchTab('visual')">👁 Visual checks</button>
+    <button class="tab" onclick="switchTab('log')">📋 Session log</button>
+    <button class="tab" onclick="switchTab('debug')">🔬 Raw OCR</button>
+  </div>
+
+  <!-- OCR TAB -->
+  <div class="tab-panel active" id="tab-ocr">
+    <div class="grid2">
+      <div class="panel">
+        <div class="plabel">📌 Master label</div>
+        <div class="dz" id="mZone" onclick="document.getElementById('mFile').click()">
+          <div class="dzhint"><span class="icon">📤</span>Click to load master label<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP</span></div>
+        </div>
+        <input type="file" id="mFile" accept="image/*">
+        <div class="fgrid" id="mFields"></div>
+      </div>
+      <div class="panel">
+        <div class="plabel">🏷 Printed sample</div>
+        <div class="dz" id="sZone" onclick="document.getElementById('sFile').click()">
+          <div class="dzhint"><span class="icon">📤</span>Click to load printed sample<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP</span></div>
+        </div>
+        <input type="file" id="sFile" accept="image/*">
+        <div class="fgrid" id="sFields"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR TAB -->
+  <div class="tab-panel" id="tab-barcode">
+    <div class="grid2">
+      <div class="panel">
+        <div class="plabel">📌 Master QR code</div>
+        <div id="mBarcodes"><div class="empty">Load master label to scan QR code.</div></div>
+      </div>
+      <div class="panel">
+        <div class="plabel">🏷 Sample QR code</div>
+        <div id="sBarcodes"><div class="empty">Load sample label to scan QR code.</div></div>
+      </div>
+    </div>
+    <div class="panel" id="bcResult" style="display:none">
+      <div class="stitle">⬛ QR code comparison</div>
+      <div id="bcDiff"></div>
+    </div>
+  </div>
+
+  <!-- DEBUG TAB -->
+  <div class="tab-panel" id="tab-debug">
+    <div class="grid2">
+      <div class="panel">
+        <div class="plabel">📌 Master — raw OCR text</div>
+        <pre id="mRaw" style="font-size:11px;font-family:var(--mono);color:var(--text2);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;padding:4px 0"><span class="empty">Load master label to see raw OCR output.</span></pre>
+      </div>
+      <div class="panel">
+        <div class="plabel">🏷 Sample — raw OCR text</div>
+        <pre id="sRaw" style="font-size:11px;font-family:var(--mono);color:var(--text2);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;padding:4px 0"><span class="empty">Load sample label to see raw OCR output.</span></pre>
+      </div>
+    </div>
+    <div class="panel" style="font-size:12px;color:var(--text2);line-height:1.7">
+      Use this tab to check what Tesseract actually read. If a field is missing, look for it here — OCR sometimes misreads characters (e.g. <code style="font-family:var(--mono);font-size:11px">O→0, l→1, G→6</code>). You can use this to fine-tune the field patterns.
+    </div>
+  </div>
+
+  <!-- VISUAL TAB -->
+  <div class="tab-panel" id="tab-visual">
+    <div class="panel section">
+      <div class="stitle">👁 Structural checks</div>
+      <div id="visualChecks"><div class="empty">Load both labels and run verification to see visual checks.</div></div>
+    </div>
+  </div>
+
+  <!-- LOG TAB -->
+  <div class="tab-panel" id="tab-log">
+    <div class="metrics" style="margin-bottom:1rem">
+      <div class="metric"><div class="mval" id="mTotal">0</div><div class="mlbl">Total checks</div></div>
+      <div class="metric"><div class="mval" id="mPass" style="color:var(--green-border)">0</div><div class="mlbl">Passed</div></div>
+      <div class="metric"><div class="mval" id="mFail" style="color:var(--red-border)">0</div><div class="mlbl">Failed</div></div>
+      <div class="metric"><div class="mval" id="mRate">—</div><div class="mlbl">Pass rate</div></div>
+    </div>
+    <div class="logpanel">
+      <div class="stitle">📋 Verification history</div>
+      <div id="logEntries"><div class="empty">No verifications logged yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="acts">
+    <button class="btn pri" id="vBtn" disabled onclick="runVerification()">✅ Verify label</button>
+    <button class="btn" onclick="resetAll()">↺ Reset</button>
+    <button class="btn" id="expBtn" style="display:none" onclick="exportReport()">⬇ Export report</button>
+  </div>
+
+  <!-- RESULT PANEL -->
+  <div class="rpanel" id="rPanel">
+    <div class="rhead">
+      <span class="rtitle">Verification result</span>
+      <span class="rscore" id="rScore"></span>
+    </div>
+    <div class="verdict" id="rVerdict"></div>
+    <div class="metrics">
+      <div class="metric"><div class="mval" id="rOCR">—</div><div class="mlbl">OCR fields</div></div>
+      <div class="metric"><div class="mval" id="rBC">—</div><div class="mlbl">Barcode</div></div>
+      <div class="metric"><div class="mval" id="rVis">—</div><div class="mlbl">Visual</div></div>
+      <div class="metric"><div class="mval" id="rFields">—</div><div class="mlbl">Fields matched</div></div>
+    </div>
+    <div class="dheads"><span>Field</span><span>Master</span><span>Sample</span><span>Status</span></div>
+    <div id="diffList"></div>
+    <div class="acts" style="margin-top:10px">
+      <button class="btn" onclick="logResult()">📋 Log this result</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Libraries loaded from CDN — swap for local copies for fully offline use -->
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+
+<script>
+// ─── Field definitions — fuzzy-aware ────────────────────────────────────────
+// OCR commonly misreads: O↔0, l↔1, I↔1, G↔6, S↔5, B↔8, Z↔2
+// Strategy: match loosely, then normalise for comparison
+const FIELDS = [
+  // Part number: 5 digits, dash, 4-6 alphanumeric (allow common OCR swaps)
+  { key: 'Part number',    re: /\b(\d{5}[\-–]\s*[A-Z0-9]{4,6})\b/ },
+  // Secondary part: 6 digits dash 4 digits (e.g. 175800-8711)
+  { key: 'Secondary part', re: /\b(\d{6}[\-–]\s*\d{4})\b/ },
+  // Voltage: 1–3 digits followed immediately by V
+  { key: 'Voltage',        re: /\b(\d{1,3}\s*V)\b/ },
+  // Manufacturer: broad list, allow partial OCR noise around word
+  { key: 'Manufacturer',   re: /\b(DENSO|BOSCH|DELPHI|VALEO|CONTINENTAL|SIEMENS|MITSUBISHI|HITACHI|TOYOTA|MAGNA|TRW|AISIN|JTEKT|MITSUBA|KEIHIN|NIKKI|AISAN)\b/i },
+  // Label type: allow multiword
+  { key: 'Label type',     re: /\b(ENGINE\s*CONTROL|TRANSMISSION|ABS|BCM|BODY\s*CONTROL|ECU|ECM|TCM|PCM|AIRBAG|SRS)\b/i },
+  // Origin: MADE IN ... or just country name
+  { key: 'Origin',         re: /\b(MADE\s*IN\s*(?:JAPAN|MALAYSIA|CHINA|GERMANY|MEXICO|KOREA|THAILAND|INDONESIA)|MALAYSIA|JAPAN|GERMANY|THAILAND)\b/i },
+  // Revision
+  { key: 'Revision',       re: /\b(REV[\s\-]?[A-Z0-9]{1,3}|VER[\s\-]?[A-Z0-9]{1,3})\b/i },
+  // Serial
+  { key: 'Serial no.',     re: /\b(S[\s\/]?N[\s:]+[\w\-]{4,}|SN[\s:]+[\w\-]{4,})\b/i },
+];
+
+// Normalise extracted value to reduce OCR noise before comparison
+function normalise(v) {
+  if (!v) return '';
+  return v.toUpperCase()
+    .replace(/\s+/g, '')   // collapse spaces OCR sometimes inserts
+    .replace(/[–—]/g, '-') // normalise dashes
+    .replace(/O/g, '0')    // O → 0 in part numbers (we compare normalised both sides)
+    .replace(/l/g, '1').replace(/I(?=\d)/g, '1'); // l/I → 1 when next to digit
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let mData = null, sData = null, lastResult = null;
+let logCount = 0, totalPass = 0, totalFail = 0;
+let ZXing = null;
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+function setStatus(msg, t = 'ok') {
+  document.getElementById('stxt').textContent = msg;
+  const d = document.getElementById('sdot');
+  d.className = 'sdot' + (t === 'w' ? ' w' : t === 'e' ? ' e' : '');
+}
+
+function setProgress(p) {
+  const bar = document.getElementById('pbar'), fill = document.getElementById('pfill');
+  if (p <= 0) { bar.classList.remove('on'); return; }
+  bar.classList.add('on');
+  fill.style.width = p + '%';
+  if (p >= 100) setTimeout(() => bar.classList.remove('on'), 700);
+}
+
+function switchTab(name) {
+  const names = ['ocr', 'barcode', 'visual', 'log', 'debug'];
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ─── Field extraction ────────────────────────────────────────────────────────
+function extractFields(text) {
+  const up = text.toUpperCase(), r = {};
+  for (const f of FIELDS) { const m = up.match(f.re); r[f.key] = m ? m[1].replace(/\s+/g,'') : null; }
+  return r;
+}
+
+// ─── QR code decoding (QR_CODE priority, TRY_HARDER on) ─────────────────────
+async function decodeQR(file) {
+  if (!ZXing) return [];
+  return new Promise(resolve => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      // Try at multiple scales to improve detection on small QR codes
+      const scales = [1, 1.5, 2];
+      const results = [];
+      for (const scale of scales) {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth * scale; c.height = img.naturalHeight * scale;
+          const ctx = c.getContext('2d');
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          // also try contrast-boosted version
+          const variants = [c];
+          const cb = document.createElement('canvas');
+          cb.width = c.width; cb.height = c.height;
+          const cbctx = cb.getContext('2d');
+          cbctx.filter = 'contrast(200%) brightness(110%)';
+          cbctx.drawImage(c, 0, 0);
+          variants.push(cb);
+          for (const canvas of variants) {
+            try {
+              const hints = new Map();
+              hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX]);
+              hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+              const reader = new ZXing.MultiFormatReader();
+              reader.setHints(hints);
+              const lum = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+              const bmp = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+              const r = reader.decode(bmp);
+              if (!results.find(x => x.text === r.getText())) {
+                results.push({ text: r.getText(), format: 'QR_CODE' });
+              }
+            } catch(e) {}
+          }
+        } catch(e) {}
+        if (results.length > 0) break; // stop once we have a hit
+      }
+      URL.revokeObjectURL(url);
+      resolve(results);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve([]); };
+    img.src = url;
+  });
+}
+
+// ─── Visual / structural checks ──────────────────────────────────────────────
+function analyzeVisual(mF, sF) {
+  const mVals = Object.values(mF).filter(Boolean);
+  const sVals = Object.values(sF).filter(Boolean);
+  return [
+    { name: 'Field density',       ok: Math.abs(mVals.length - sVals.length) <= 1, detail: `Master: ${mVals.length} fields · Sample: ${sVals.length} fields` },
+    { name: 'Part number present', ok: !!mF['Part number'] && !!sF['Part number'], detail: mF['Part number'] && sF['Part number'] ? 'Part number detected on both' : 'Part number missing on one or both labels' },
+    { name: 'Voltage marking',     ok: !!mF['Voltage'] && !!sF['Voltage'], detail: mF['Voltage'] && sF['Voltage'] ? 'Voltage rating present on both' : 'Voltage marking absent on one or both' },
+    { name: 'Origin marking',      ok: !!mF['Origin'] && !!sF['Origin'], detail: mF['Origin'] && sF['Origin'] ? 'Country of origin detected on both' : 'Origin marking absent on one or both' },
+    { name: 'Manufacturer name',   ok: !!mF['Manufacturer'] && !!sF['Manufacturer'], detail: mF['Manufacturer'] && sF['Manufacturer'] ? 'Manufacturer detected on both' : 'Manufacturer name absent on one or both' },
+    { name: 'Label type declared', ok: !!mF['Label type'] && !!sF['Label type'], detail: mF['Label type'] && sF['Label type'] ? 'Label type present on both' : 'Label type text absent on one or both' },
+  ];
+}
+
+// ─── Render helpers ──────────────────────────────────────────────────────────
+function renderFields(cid, fields, cmp) {
+  const el = document.getElementById(cid);
+  if (!fields) { el.innerHTML = ''; return; }
+  let html = '';
+  for (const f of FIELDS) {
+    const v = fields[f.key];
+    if (!v && !cmp) continue;
+    let badge = '';
+    if (cmp && (v || cmp[f.key])) {
+      const ref = cmp[f.key];
+      const ok = ref && v && normalise(ref) === normalise(v);
+      badge = `<span class="badge ${ok ? 'bok' : 'bfail'}">${ok ? 'OK' : '!!!'}</span>`;
+    }
+    if (v || cmp) html += `<div class="frow"><span class="fname">${f.key}</span><span class="fval">${v || '—'}</span>${badge}</div>`;
+  }
+  el.innerHTML = html || '<div class="empty">No fields extracted — check Raw OCR tab to see what was read.</div>';
+}
+
+function renderQR(cid, qrs) {
+  const el = document.getElementById(cid);
+  if (!qrs || qrs.length === 0) {
+    el.innerHTML = '<div class="empty">No QR code detected. Tips: ensure the QR is in focus, well-lit, and not too small in the frame.</div>';
+    return;
+  }
+  el.innerHTML = qrs.map(q => `<div class="bcrow"><span class="bclbl">QR CODE</span><span class="bcval">${q.text}</span></div>`).join('');
+}
+
+function renderQRComparison(mQR, sQR) {
+  const panel = document.getElementById('bcResult'), diff = document.getElementById('bcDiff');
+  panel.style.display = 'block';
+  if (!mQR.length || !sQR.length) {
+    diff.innerHTML = '<div class="empty">Could not compare — QR code not detected on one or both labels.</div>';
+    return;
+  }
+  const maxLen = Math.max(mQR.length, sQR.length);
+  let html = '';
+  for (let i = 0; i < maxLen; i++) {
+    const mv = mQR[i] ? mQR[i].text : '—', sv = sQR[i] ? sQR[i].text : '—';
+    const ok = mv === sv;
+    html += `<div class="ditem ${ok ? 'dok' : 'dfail'}">
+      <span class="dfield">QR ${i + 1}</span>
+      <span class="dmaster">${mv}</span>
+      <span class="dsample">${sv}</span>
+      <span class="badge ${ok ? 'bok' : 'bfail'}">${ok ? 'Match' : 'Diff'}</span>
+    </div>`;
+  }
+  diff.innerHTML = html;
+}
+
+function renderVisualChecks(checks) {
+  document.getElementById('visualChecks').innerHTML = checks.map(c => `
+    <div class="vcheck">
+      <span class="vcname">${c.name}</span>
+      <span class="vcdetail">${c.detail}</span>
+      <span class="badge ${c.ok ? 'bok' : 'bfail'}">${c.ok ? 'OK' : 'Fail'}</span>
+    </div>`).join('');
+}
+
+function showImage(zoneId, file) {
+  const url = URL.createObjectURL(file);
+  const z = document.getElementById(zoneId);
+  z.classList.add('has-img');
+  z.innerHTML = `<img src="${url}" alt="Label image">`;
+}
+
+// ─── Process a label (OCR + QR) ──────────────────────────────────────────────
+async function processLabel(file, role) {
+  setStatus(`Reading ${role} label via OCR...`, 'w');
+  setProgress(10);
+  const ocrResult = await Tesseract.recognize(file, 'eng', {
+    logger: m => { if (m.status === 'recognizing text') setProgress(10 + m.progress * 55); },
+    // PSM 6 = assume a single uniform block of text — works better for label layouts
+    tessedit_pageseg_mode: '6',
+    // Whitelist characters common on labels to reduce noise
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/ .',
+  });
+  setProgress(70);
+  setStatus(`Scanning ${role} QR code...`, 'w');
+  const qrs = await decodeQR(file);
+  setProgress(100);
+  const rawText = ocrResult.data.text;
+  return { text: rawText, fields: extractFields(rawText), barcodes: qrs };
+}
+
+// ─── File input handlers ─────────────────────────────────────────────────────
+document.getElementById('mFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  showImage('mZone', f);
+  mData = await processLabel(f, 'master');
+  renderFields('mFields', mData.fields, null);
+  renderQR('mBarcodes', mData.barcodes);
+  document.getElementById('mRaw').textContent = mData.text || '(empty)';
+  setStatus('Master label loaded. Load a sample to compare.', 'ok');
+  checkReady();
+});
+
+document.getElementById('sFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  showImage('sZone', f);
+  sData = await processLabel(f, 'sample');
+  renderFields('sFields', sData.fields, null);
+  renderQR('sBarcodes', sData.barcodes);
+  document.getElementById('sRaw').textContent = sData.text || '(empty)';
+  setStatus('Sample loaded. Press Verify to compare.', 'ok');
+  checkReady();
+});
+
+function checkReady() {
+  document.getElementById('vBtn').disabled = !(mData && sData);
+}
+
+// ─── Main verification ───────────────────────────────────────────────────────
+function runVerification() {
+  if (!mData || !sData) return;
+
+  // OCR comparison — use normalise() for fuzzy matching
+  let matches = 0, total = 0, diffs = [];
+  for (const f of FIELDS) {
+    const mv = mData.fields[f.key], sv = sData.fields[f.key];
+    if (!mv && !sv) continue;
+    total++;
+    const ok = mv && sv && normalise(mv) === normalise(sv);
+    if (ok) matches++;
+    diffs.push({ key: f.key, master: mv || '—', sample: sv || '—', ok });
+  }
+  const ocrPct = total > 0 ? Math.round(matches / total * 100) : 0;
+
+  // QR comparison
+  let bcMatches = 0, bcTotal = 0, bcOk = false;
+  if (mData.barcodes.length > 0 && sData.barcodes.length > 0) {
+    bcTotal = Math.max(mData.barcodes.length, sData.barcodes.length);
+    for (let i = 0; i < bcTotal; i++) {
+      if (mData.barcodes[i] && sData.barcodes[i] && mData.barcodes[i].text === sData.barcodes[i].text) bcMatches++;
+    }
+    bcOk = bcMatches === bcTotal;
+  }
+  const bcPct = bcTotal > 0 ? Math.round(bcMatches / bcTotal * 100) : null;
+
+  // Visual checks
+  const visChecks = analyzeVisual(mData.fields, sData.fields);
+  const visPassed = visChecks.filter(c => c.ok).length;
+  const visPct = Math.round(visPassed / visChecks.length * 100);
+
+  // Combined score
+  const combined = bcTotal > 0
+    ? Math.round(ocrPct * 0.50 + bcPct * 0.30 + visPct * 0.20)
+    : Math.round(ocrPct * 0.65 + visPct * 0.35);
+
+  lastResult = { combined, ocrPct, bcOk, bcMatches, bcTotal, bcPct, visPct, visChecks, matches, total, diffs, ts: new Date() };
+
+  // Render result panel
+  document.getElementById('rScore').textContent = combined + '%';
+  document.getElementById('rScore').className = 'rscore ' + (combined === 100 ? 'sok' : 'sfail');
+  document.getElementById('rOCR').textContent = ocrPct + '%';
+  document.getElementById('rBC').textContent = bcTotal > 0 ? (bcOk ? 'Match' : 'Diff') : 'N/A';
+  document.getElementById('rVis').textContent = visPct + '%';
+  document.getElementById('rFields').textContent = matches + '/' + total;
+
+  const vrd = document.getElementById('rVerdict');
+  if (combined === 100) {
+    vrd.className = 'verdict vok';
+    vrd.textContent = '✅ All checks passed — label approved';
+  } else if (combined >= 75) {
+    vrd.className = 'verdict vwarn';
+    vrd.textContent = '⚠️ Partial match — review mismatches before approving';
+  } else {
+    vrd.className = 'verdict vfail';
+    vrd.textContent = '❌ Label REJECTED — critical mismatches detected';
+  }
+
+  document.getElementById('diffList').innerHTML = diffs.map(d => `
+    <div class="ditem ${d.ok ? 'dok' : 'dfail'}">
+      <span class="dfield">${d.key}</span>
+      <span class="dmaster">${d.master}</span>
+      <span class="dsample">${d.sample}</span>
+      <span class="badge ${d.ok ? 'bok' : 'bfail'}">${d.ok ? 'OK' : '!!!'}</span>
+    </div>`).join('');
+
+  document.getElementById('rPanel').style.display = 'block';
+  document.getElementById('expBtn').style.display = 'flex';
+
+  // Update other tabs
+  renderFields('mFields', mData.fields, null);
+  renderFields('sFields', sData.fields, mData.fields);
+  renderQRComparison(mData.barcodes, sData.barcodes);
+  renderVisualChecks(visChecks);
+
+  setStatus(combined === 100 ? 'Verification passed.' : `Failed — ${total - matches} OCR mismatch(es) · QR: ${bcTotal > 0 ? (bcOk ? 'OK' : 'DIFF') : 'N/A'} · visual: ${visPct}%`, combined === 100 ? 'ok' : 'e');
+}
+
+// ─── Log result ───────────────────────────────────────────────────────────────
+function logResult() {
+  if (!lastResult) return;
+  logCount++;
+  const ok = lastResult.combined === 100;
+  if (ok) totalPass++; else totalFail++;
+  const tot = totalPass + totalFail;
+  document.getElementById('mTotal').textContent = tot;
+  document.getElementById('mPass').textContent = totalPass;
+  document.getElementById('mFail').textContent = totalFail;
+  document.getElementById('mRate').textContent = Math.round(totalPass / tot * 100) + '%';
+
+  const container = document.getElementById('logEntries');
+  const empty = container.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const t = lastResult.ts;
+  const ts = t.getHours().toString().padStart(2, '0') + ':' + t.getMinutes().toString().padStart(2, '0');
+  const entry = document.createElement('div');
+  entry.className = 'lentry';
+  entry.innerHTML = `
+    <span class="ltime">${ts}</span>
+    <span class="lop">Check #${logCount} — OCR ${lastResult.ocrPct}% · BC ${lastResult.bcTotal > 0 ? (lastResult.bcOk ? 'OK' : 'Diff') : '—'} · Visual ${lastResult.visPct}% · Overall ${lastResult.combined}%</span>
+    <span class="badge ${ok ? 'bok' : lastResult.combined >= 75 ? 'bwarn' : 'bfail'}">${ok ? 'PASS' : lastResult.combined >= 75 ? 'WARN' : 'FAIL'}</span>`;
+  container.prepend(entry);
+}
+
+// ─── Export report ────────────────────────────────────────────────────────────
+function exportReport() {
+  if (!lastResult) return;
+  const r = lastResult;
+  const sep = '─'.repeat(60);
+  const lines = [
+    'LABEL VERIFICATION REPORT',
+    sep,
+    'Generated : ' + r.ts.toISOString(),
+    'Overall   : ' + r.combined + '%',
+    '',
+    'OCR FIELD COMPARISON (' + r.ocrPct + '%)',
+    sep,
+    ...r.diffs.map(d => `  ${d.key.padEnd(20)} Master: ${(d.master).padEnd(24)} Sample: ${d.sample}  [${d.ok ? 'OK' : 'MISMATCH'}]`),
+    '',
+    'BARCODE',
+    sep,
+    r.bcTotal > 0
+      ? `  Result: ${r.bcOk ? 'MATCH' : 'MISMATCH'} (${r.bcMatches}/${r.bcTotal} codes matched)`
+      : '  Not detected on one or both labels.',
+    '',
+    'VISUAL / STRUCTURAL CHECKS (' + r.visPct + '%)',
+    sep,
+    ...r.visChecks.map(c => `  ${c.name.padEnd(28)} [${c.ok ? 'OK  ' : 'FAIL'}] ${c.detail}`),
+    '',
+    sep,
+    'Verdict: ' + (r.combined === 100 ? 'APPROVED' : r.combined >= 75 ? 'REVIEW REQUIRED' : 'REJECTED'),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'label_report_' + Date.now() + '.txt';
+  a.click();
+}
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  mData = null; sData = null; lastResult = null;
+  ['mZone', 'sZone'].forEach(id => {
+    const z = document.getElementById(id);
+    z.classList.remove('has-img');
+    z.innerHTML = `<div class="dzhint"><span class="icon">📤</span>Click to load ${id === 'mZone' ? 'master label' : 'printed sample'}<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP</span></div>`;
+  });
+  ['mFields', 'sFields', 'diffList'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  document.getElementById('mBarcodes').innerHTML = '<div class="empty">Load master label to scan barcodes.</div>';
+  document.getElementById('sBarcodes').innerHTML = '<div class="empty">Load sample label to scan barcodes.</div>';
+  document.getElementById('bcResult').style.display = 'none';
+  document.getElementById('visualChecks').innerHTML = '<div class="empty">Load both labels and run verification to see visual checks.</div>';
+  document.getElementById('rPanel').style.display = 'none';
+  document.getElementById('expBtn').style.display = 'none';
+  document.getElementById('vBtn').disabled = true;
+  setStatus('Ready — load master label to begin.', 'ok');
+  setProgress(0);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  try {
+    ZXing = window.ZXing || window['@zxing/library'];
+    if (ZXing && ZXing.MultiFormatReader) {
+      setStatus('Ready — load master label to begin.', 'ok');
+    } else {
+      ZXing = null;
+      setStatus('OCR ready · Barcode scanner unavailable. OCR-only mode active.', 'w');
+    }
+  } catch(e) {
+    ZXing = null;
+    setStatus('OCR ready · Barcode scanner unavailable. OCR-only mode active.', 'w');
+  }
+});
+</script>
+</body>
+</html>
